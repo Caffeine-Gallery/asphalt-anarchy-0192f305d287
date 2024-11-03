@@ -7,6 +7,8 @@ const PLAYER_WIDTH = 60;
 const PLAYER_HEIGHT = 100;
 const ROAD_SPEED = 5;
 const OPPONENT_COUNT = 3;
+const MONKEY_SIZE = 30;
+const FIRE_RATE = 500; // Milliseconds between shots
 
 // Game state
 let canvas, ctx;
@@ -17,6 +19,8 @@ let playerX = CANVAS_WIDTH / 2;
 let playerY = CANVAS_HEIGHT - 150;
 let roadOffset = 0;
 let opponents = [];
+let monkeys = [];
+let lastShotTime = 0;
 let keys = {};
 let gameState = 'menu'; // menu, playing, gameOver
 
@@ -59,6 +63,7 @@ function resetOpponents() {
             speed: 2 + Math.random() * 2
         });
     }
+    monkeys = [];
 }
 
 function startGame() {
@@ -78,8 +83,25 @@ function hideAllMenus() {
     document.getElementById('highScores').classList.add('hidden');
 }
 
+function shootMonkey() {
+    const currentTime = Date.now();
+    if (currentTime - lastShotTime >= FIRE_RATE) {
+        monkeys.push({
+            x: playerX + PLAYER_WIDTH / 2 - MONKEY_SIZE / 2,
+            y: playerY,
+            speed: 10
+        });
+        lastShotTime = currentTime;
+    }
+}
+
 function update() {
     if (gameState !== 'playing') return;
+
+    // Handle shooting
+    if (keys[' ']) {
+        shootMonkey();
+    }
 
     // Update player position
     if (keys['ArrowLeft']) playerX = Math.max(0, playerX - 5);
@@ -90,6 +112,29 @@ function update() {
     // Update road
     roadOffset = (roadOffset + ROAD_SPEED + speed/20) % 50;
 
+    // Update monkeys
+    monkeys = monkeys.filter(monkey => {
+        monkey.y -= monkey.speed;
+        
+        // Check collision with opponents
+        let hit = false;
+        opponents.forEach((opponent, index) => {
+            if (checkCollision(
+                monkey.x, monkey.y, MONKEY_SIZE, MONKEY_SIZE,
+                opponent.x, opponent.y, PLAYER_WIDTH, PLAYER_HEIGHT
+            )) {
+                hit = true;
+                // Reset opponent
+                opponent.y = -200;
+                opponent.x = Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH);
+                score += 200;
+            }
+        });
+        
+        // Remove monkey if it's off screen or hit something
+        return monkey.y > -MONKEY_SIZE && !hit;
+    });
+
     // Update opponents
     opponents.forEach(opponent => {
         opponent.y += opponent.speed + speed/30;
@@ -99,8 +144,11 @@ function update() {
             score += 100;
         }
 
-        // Collision detection
-        if (checkCollision(playerX, playerY, opponent.x, opponent.y)) {
+        // Collision detection with player
+        if (checkCollision(
+            playerX, playerY, PLAYER_WIDTH, PLAYER_HEIGHT,
+            opponent.x, opponent.y, PLAYER_WIDTH, PLAYER_HEIGHT
+        )) {
             gameOver();
             return;
         }
@@ -135,6 +183,12 @@ function draw() {
         ctx.stroke();
     }
 
+    // Draw monkeys
+    ctx.fillStyle = '#8B4513';
+    monkeys.forEach(monkey => {
+        ctx.fillRect(monkey.x, monkey.y, MONKEY_SIZE, MONKEY_SIZE);
+    });
+
     // Draw player
     ctx.fillStyle = '#f00';
     ctx.fillRect(playerX, playerY, PLAYER_WIDTH, PLAYER_HEIGHT);
@@ -146,8 +200,11 @@ function draw() {
     });
 }
 
-function checkCollision(x1, y1, x2, y2) {
-    return Math.abs(x1 - x2) < PLAYER_WIDTH && Math.abs(y1 - y2) < PLAYER_HEIGHT;
+function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return x1 < x2 + w2 &&
+           x1 + w1 > x2 &&
+           y1 < y2 + h2 &&
+           y1 + h1 > y2;
 }
 
 function gameOver() {
