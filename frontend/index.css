@@ -13,6 +13,7 @@ body {
     color: var(--text-color);
     font-family: 'Arial', sans-serif;
     overflow: hidden;
+    touch-action: none;
 }
 
 .game-container {
@@ -26,6 +27,39 @@ body {
 
 canvas {
     background: #000000;
+    touch-action: none;
+}
+
+.mobile-controls {
+    display: none;
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+}
+
+.shoot-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.shoot-button:active {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 768px) {
+    .mobile-controls {
+        display: block;
+    }
 }
 
 .hud {

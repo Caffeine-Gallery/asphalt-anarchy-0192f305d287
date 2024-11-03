@@ -8,7 +8,8 @@ const PLAYER_HEIGHT = 100;
 const ROAD_SPEED = 5;
 const OPPONENT_COUNT = 3;
 const MONKEY_SIZE = 30;
-const FIRE_RATE = 500; // Milliseconds between shots
+const FIRE_RATE = 500;
+const SWIPE_THRESHOLD = 30;
 
 // Game state
 let canvas, ctx;
@@ -22,7 +23,14 @@ let opponents = [];
 let monkeys = [];
 let lastShotTime = 0;
 let keys = {};
-let gameState = 'menu'; // menu, playing, gameOver
+let gameState = 'menu';
+let touchState = {
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    isMoving: false
+};
 
 // Initialize game
 function init() {
@@ -34,9 +42,21 @@ function init() {
     // Initialize opponents
     resetOpponents();
     
-    // Event listeners
+    // Event listeners for keyboard
     document.addEventListener('keydown', e => keys[e.key] = true);
     document.addEventListener('keyup', e => keys[e.key] = false);
+    
+    // Touch event listeners
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    // Shoot button for mobile
+    const shootButton = document.getElementById('shootButton');
+    shootButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        shootMonkey();
+    });
     
     document.getElementById('startGame').addEventListener('click', startGame);
     document.getElementById('showScores').addEventListener('click', showHighScores);
@@ -52,6 +72,41 @@ function init() {
 
     // Initialize Feather icons
     feather.replace();
+}
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    touchState.startX = touch.clientX;
+    touchState.startY = touch.clientY;
+    touchState.lastX = touch.clientX;
+    touchState.lastY = touch.clientY;
+    touchState.isMoving = true;
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (!touchState.isMoving) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchState.lastX;
+    const deltaY = touchState.lastY - touch.clientY; // Inverted for intuitive control
+
+    // Update player position based on horizontal swipe
+    playerX = Math.max(0, Math.min(CANVAS_WIDTH - PLAYER_WIDTH, playerX + deltaX));
+
+    // Update speed based on vertical swipe
+    if (Math.abs(deltaY) > SWIPE_THRESHOLD) {
+        speed = Math.max(0, Math.min(200, speed + deltaY * 0.1));
+    }
+
+    touchState.lastX = touch.clientX;
+    touchState.lastY = touch.clientY;
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    touchState.isMoving = false;
 }
 
 function resetOpponents() {
@@ -98,12 +153,10 @@ function shootMonkey() {
 function update() {
     if (gameState !== 'playing') return;
 
-    // Handle shooting
+    // Handle keyboard controls
     if (keys[' ']) {
         shootMonkey();
     }
-
-    // Update player position
     if (keys['ArrowLeft']) playerX = Math.max(0, playerX - 5);
     if (keys['ArrowRight']) playerX = Math.min(CANVAS_WIDTH - PLAYER_WIDTH, playerX + 5);
     if (keys['ArrowUp']) speed = Math.min(200, speed + 1);
@@ -124,14 +177,12 @@ function update() {
                 opponent.x, opponent.y, PLAYER_WIDTH, PLAYER_HEIGHT
             )) {
                 hit = true;
-                // Reset opponent
                 opponent.y = -200;
                 opponent.x = Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH);
                 score += 200;
             }
         });
         
-        // Remove monkey if it's off screen or hit something
         return monkey.y > -MONKEY_SIZE && !hit;
     });
 
@@ -144,7 +195,6 @@ function update() {
             score += 100;
         }
 
-        // Collision detection with player
         if (checkCollision(
             playerX, playerY, PLAYER_WIDTH, PLAYER_HEIGHT,
             opponent.x, opponent.y, PLAYER_WIDTH, PLAYER_HEIGHT
@@ -154,10 +204,8 @@ function update() {
         }
     });
 
-    // Draw everything
     draw();
 
-    // Update score
     document.getElementById('score').textContent = score;
     document.getElementById('speed').textContent = Math.floor(speed);
 
@@ -165,15 +213,12 @@ function update() {
 }
 
 function draw() {
-    // Clear canvas
     ctx.fillStyle = '#333';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Draw road
     ctx.fillStyle = '#666';
     ctx.fillRect(100, 0, CANVAS_WIDTH - 200, CANVAS_HEIGHT);
 
-    // Draw road lines
     ctx.strokeStyle = '#fff';
     ctx.setLineDash([20, 30]);
     for (let i = -50 + roadOffset; i < CANVAS_HEIGHT; i += 50) {
@@ -183,17 +228,14 @@ function draw() {
         ctx.stroke();
     }
 
-    // Draw monkeys
     ctx.fillStyle = '#8B4513';
     monkeys.forEach(monkey => {
         ctx.fillRect(monkey.x, monkey.y, MONKEY_SIZE, MONKEY_SIZE);
     });
 
-    // Draw player
     ctx.fillStyle = '#f00';
     ctx.fillRect(playerX, playerY, PLAYER_WIDTH, PLAYER_HEIGHT);
 
-    // Draw opponents
     ctx.fillStyle = '#00f';
     opponents.forEach(opponent => {
         ctx.fillRect(opponent.x, opponent.y, PLAYER_WIDTH, PLAYER_HEIGHT);
@@ -262,5 +304,4 @@ async function showHighScores() {
     }
 }
 
-// Start the game
 window.addEventListener('load', init);
