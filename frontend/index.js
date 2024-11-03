@@ -11,8 +11,8 @@ const MONKEY_SIZE = 30;
 const FIRE_RATE = 500;
 const SWIPE_THRESHOLD = 30;
 const TAP_THRESHOLD = 200;
-const TIME_BONUS_RATE = 100; // Points per second
-const TIME_BONUS_INTERVAL = 1000; // Milliseconds
+const TIME_BONUS_RATE = 100;
+const TIME_BONUS_INTERVAL = 1000;
 
 // Game state
 let canvas, ctx;
@@ -126,7 +126,6 @@ function resetOpponents() {
             type: 'bike'
         });
     }
-    monkeys = [];
 }
 
 function startGame() {
@@ -137,6 +136,7 @@ function startGame() {
     playerX = CANVAS_WIDTH / 2;
     gameStartTime = Date.now();
     lastTimeBonusUpdate = gameStartTime;
+    monkeys = [];
     resetOpponents();
     hideAllMenus();
     if (gameLoop) cancelAnimationFrame(gameLoop);
@@ -158,12 +158,13 @@ function showHitEffect(x, y, color) {
 
 function shootMonkey() {
     const currentTime = Date.now();
-    if (currentTime - lastShotTime >= FIRE_RATE) {
-        monkeys.push({
+    if (currentTime - lastShotTime >= FIRE_RATE && gameState === 'playing') {
+        const newMonkey = {
             x: playerX + PLAYER_WIDTH / 2 - MONKEY_SIZE / 2,
             y: playerY,
             speed: 10
-        });
+        };
+        monkeys.push(newMonkey);
         lastShotTime = currentTime;
         showHitEffect(playerX + PLAYER_WIDTH / 2, playerY, 'rgba(255, 255, 0, 0.5)');
     }
@@ -182,7 +183,9 @@ function update() {
 
     roadOffset = (roadOffset + ROAD_SPEED + speed/20) % 50;
 
-    monkeys = monkeys.filter(monkey => {
+    // Update monkeys
+    for (let i = monkeys.length - 1; i >= 0; i--) {
+        const monkey = monkeys[i];
         monkey.y -= monkey.speed;
         
         let hit = false;
@@ -201,9 +204,12 @@ function update() {
             }
         });
         
-        return monkey.y > -MONKEY_SIZE && !hit;
-    });
+        if (hit || monkey.y < -MONKEY_SIZE) {
+            monkeys.splice(i, 1);
+        }
+    }
 
+    // Update opponents
     opponents.forEach(opponent => {
         opponent.y += opponent.speed + speed/30;
         if (opponent.y > CANVAS_HEIGHT) {
