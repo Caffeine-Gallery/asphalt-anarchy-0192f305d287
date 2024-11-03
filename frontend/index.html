@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road Rush</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="hud">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="speed">Speed: <span id="speed">0</span> mph</div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="menu" class="menu">
+            <h1>Road Rush</h1>
+            <button id="startGame" class="btn">
+                <i data-feather="play"></i> Start Game
+            </button>
+            <button id="showScores" class="btn">
+                <i data-feather="award"></i> High Scores
+            </button>
+        </div>
+
+        <div id="gameOver" class="menu hidden">
+            <h2>Game Over</h2>
+            <div class="final-score">Score: <span id="finalScore">0</span></div>
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="10">
+            <button id="submitScore" class="btn">
+                <i data-feather="save"></i> Submit Score
+            </button>
+            <button id="playAgain" class="btn">
+                <i data-feather="refresh-cw"></i> Play Again
+            </button>
+        </div>
+
+        <div id="highScores" class="menu hidden">
+            <h2>High Scores</h2>
+            <div id="scoresList"></div>
+            <button id="backToMenu" class="btn">
+                <i data-feather="arrow-left"></i> Back
+            </button>
+        </div>
+    </div>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script type="module" src="index.js"></script>
+</body>
+</html>
