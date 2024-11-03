@@ -10,6 +10,7 @@ const OPPONENT_COUNT = 3;
 const MONKEY_SIZE = 30;
 const FIRE_RATE = 500;
 const SWIPE_THRESHOLD = 30;
+const TAP_THRESHOLD = 200; // Maximum ms for a touch to be considered a tap
 
 // Game state
 let canvas, ctx;
@@ -29,7 +30,9 @@ let touchState = {
     startY: 0,
     lastX: 0,
     lastY: 0,
-    isMoving: false
+    startTime: 0,
+    isMoving: false,
+    moved: false
 };
 
 // Initialize game
@@ -50,13 +53,6 @@ function init() {
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-
-    // Shoot button for mobile
-    const shootButton = document.getElementById('shootButton');
-    shootButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        shootMonkey();
-    });
     
     document.getElementById('startGame').addEventListener('click', startGame);
     document.getElementById('showScores').addEventListener('click', showHighScores);
@@ -81,7 +77,9 @@ function handleTouchStart(e) {
     touchState.startY = touch.clientY;
     touchState.lastX = touch.clientX;
     touchState.lastY = touch.clientY;
+    touchState.startTime = Date.now();
     touchState.isMoving = true;
+    touchState.moved = false;
 }
 
 function handleTouchMove(e) {
@@ -90,7 +88,12 @@ function handleTouchMove(e) {
 
     const touch = e.touches[0];
     const deltaX = touch.clientX - touchState.lastX;
-    const deltaY = touchState.lastY - touch.clientY; // Inverted for intuitive control
+    const deltaY = touchState.lastY - touch.clientY;
+
+    // If moved more than threshold, mark as moved
+    if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+        touchState.moved = true;
+    }
 
     // Update player position based on horizontal swipe
     playerX = Math.max(0, Math.min(CANVAS_WIDTH - PLAYER_WIDTH, playerX + deltaX));
@@ -106,6 +109,13 @@ function handleTouchMove(e) {
 
 function handleTouchEnd(e) {
     e.preventDefault();
+    const touchDuration = Date.now() - touchState.startTime;
+    
+    // If touch was short and didn't move much, consider it a tap
+    if (touchDuration < TAP_THRESHOLD && !touchState.moved && gameState === 'playing') {
+        shootMonkey();
+    }
+    
     touchState.isMoving = false;
 }
 
@@ -147,6 +157,12 @@ function shootMonkey() {
             speed: 10
         });
         lastShotTime = currentTime;
+        
+        // Add visual feedback for shooting
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.beginPath();
+        ctx.arc(playerX + PLAYER_WIDTH / 2, playerY, 30, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
