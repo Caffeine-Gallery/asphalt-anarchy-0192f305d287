@@ -11,15 +11,14 @@ const MONKEY_SIZE = 30;
 const FIRE_RATE = 500;
 const SWIPE_THRESHOLD = 30;
 const TAP_THRESHOLD = 200;
-
-// Scoring constants
-const SCORE_BIKE_HIT = 100;
-const SCORE_PASS_OPPONENT = 100;
+const TIME_BONUS_RATE = 100; // Points per second
+const TIME_BONUS_INTERVAL = 1000; // Milliseconds
 
 // Game state
 let canvas, ctx;
 let gameLoop;
 let score = 0;
+let timeBonus = 0;
 let speed = 0;
 let playerX = CANVAS_WIDTH / 2;
 let playerY = CANVAS_HEIGHT - 150;
@@ -27,6 +26,9 @@ let roadOffset = 0;
 let opponents = [];
 let monkeys = [];
 let lastShotTime = 0;
+let lastTimeBonusUpdate = 0;
+let gameStartTime = 0;
+let currentTime = 0;
 let keys = {};
 let gameState = 'menu';
 let touchState = {
@@ -39,7 +41,6 @@ let touchState = {
     moved: false
 };
 
-// Initialize game
 function init() {
     canvas = document.getElementById('gameCanvas');
     canvas.width = CANVAS_WIDTH;
@@ -122,7 +123,7 @@ function resetOpponents() {
             x: Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH),
             y: -((i + 1) * 200),
             speed: 2 + Math.random() * 2,
-            type: 'bike'  // Add type to identify bikes
+            type: 'bike'
         });
     }
     monkeys = [];
@@ -131,12 +132,15 @@ function resetOpponents() {
 function startGame() {
     gameState = 'playing';
     score = 0;
+    timeBonus = 0;
     speed = 0;
     playerX = CANVAS_WIDTH / 2;
+    gameStartTime = Date.now();
+    lastTimeBonusUpdate = gameStartTime;
     resetOpponents();
     hideAllMenus();
     if (gameLoop) cancelAnimationFrame(gameLoop);
-    gameLoop = requestAnimationFrame(update);
+    gameLoop = requestAnimationFrame(updateGame);
 }
 
 function hideAllMenus() {
@@ -161,7 +165,6 @@ function shootMonkey() {
             speed: 10
         });
         lastShotTime = currentTime;
-        
         showHitEffect(playerX + PLAYER_WIDTH / 2, playerY, 'rgba(255, 255, 0, 0.5)');
     }
 }
@@ -191,10 +194,8 @@ function update() {
                 hit = true;
                 opponent.y = -200;
                 opponent.x = Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH);
-                
-                // Add bike-specific scoring and effects
                 if (opponent.type === 'bike') {
-                    score += SCORE_BIKE_HIT;
+                    score += 100;
                     showHitEffect(opponent.x + PLAYER_WIDTH/2, opponent.y + PLAYER_HEIGHT/2, 'rgba(255, 0, 0, 0.5)');
                 }
             }
@@ -208,7 +209,7 @@ function update() {
         if (opponent.y > CANVAS_HEIGHT) {
             opponent.y = -200;
             opponent.x = Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH);
-            score += SCORE_PASS_OPPONENT;
+            score += 100;
         }
 
         if (checkCollision(
@@ -221,11 +222,32 @@ function update() {
     });
 
     draw();
+}
 
-    document.getElementById('score').textContent = score;
+function updateGame(timestamp) {
+    if (gameState !== 'playing') return;
+
+    currentTime = Date.now();
+    
+    if (currentTime - lastTimeBonusUpdate >= TIME_BONUS_INTERVAL) {
+        timeBonus += TIME_BONUS_RATE;
+        lastTimeBonusUpdate = currentTime;
+        
+        document.getElementById('timeBonus').textContent = TIME_BONUS_RATE;
+        setTimeout(() => {
+            document.getElementById('timeBonus').textContent = '0';
+        }, 500);
+    }
+
+    const survivalTime = Math.floor((currentTime - gameStartTime) / 1000);
+    document.getElementById('time').textContent = survivalTime;
+
+    update();
+    
+    document.getElementById('score').textContent = score + timeBonus;
     document.getElementById('speed').textContent = Math.floor(speed);
-
-    gameLoop = requestAnimationFrame(update);
+    
+    gameLoop = requestAnimationFrame(updateGame);
 }
 
 function draw() {
@@ -267,7 +289,10 @@ function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
 
 function gameOver() {
     gameState = 'gameOver';
+    const finalScore = score + timeBonus;
     document.getElementById('finalScore').textContent = score;
+    document.getElementById('finalTimeBonus').textContent = timeBonus;
+    document.getElementById('totalScore').textContent = finalScore;
     document.getElementById('gameOver').classList.remove('hidden');
     cancelAnimationFrame(gameLoop);
 }
@@ -281,7 +306,8 @@ async function submitScore() {
     document.getElementById('gameOver').appendChild(loading);
 
     try {
-        await backend.addScore(name, score);
+        const finalScore = score + timeBonus;
+        await backend.addScore(name, finalScore);
         hideAllMenus();
         await showHighScores();
     } catch (error) {

@@ -11,6 +11,8 @@
         <div class="hud">
             <div class="score">Score: <span id="score">0</span></div>
             <div class="speed">Speed: <span id="speed">0</span> mph</div>
+            <div class="time">Survival Time: <span id="time">0</span>s</div>
+            <div class="bonus">Time Bonus: +<span id="timeBonus">0</span></div>
         </div>
         <canvas id="gameCanvas"></canvas>
         
@@ -27,6 +29,8 @@
         <div id="gameOver" class="menu hidden">
             <h2>Game Over</h2>
             <div class="final-score">Score: <span id="finalScore">0</span></div>
+            <div class="time-bonus">Time Bonus: <span id="finalTimeBonus">0</span></div>
+            <div class="total-score">Total: <span id="totalScore">0</span></div>
             <input type="text" id="playerName" placeholder="Enter your name" maxlength="10">
             <button id="submitScore" class="btn">
                 <i data-feather="save"></i> Submit Score
