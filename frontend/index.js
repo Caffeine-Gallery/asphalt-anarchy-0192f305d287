@@ -10,7 +10,11 @@ const OPPONENT_COUNT = 3;
 const MONKEY_SIZE = 30;
 const FIRE_RATE = 500;
 const SWIPE_THRESHOLD = 30;
-const TAP_THRESHOLD = 200; // Maximum ms for a touch to be considered a tap
+const TAP_THRESHOLD = 200;
+
+// Scoring constants
+const SCORE_BIKE_HIT = 100;
+const SCORE_PASS_OPPONENT = 100;
 
 // Game state
 let canvas, ctx;
@@ -42,14 +46,11 @@ function init() {
     canvas.height = CANVAS_HEIGHT;
     ctx = canvas.getContext('2d');
     
-    // Initialize opponents
     resetOpponents();
     
-    // Event listeners for keyboard
     document.addEventListener('keydown', e => keys[e.key] = true);
     document.addEventListener('keyup', e => keys[e.key] = false);
     
-    // Touch event listeners
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -66,7 +67,6 @@ function init() {
         document.getElementById('menu').classList.remove('hidden');
     });
 
-    // Initialize Feather icons
     feather.replace();
 }
 
@@ -90,15 +90,12 @@ function handleTouchMove(e) {
     const deltaX = touch.clientX - touchState.lastX;
     const deltaY = touchState.lastY - touch.clientY;
 
-    // If moved more than threshold, mark as moved
     if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
         touchState.moved = true;
     }
 
-    // Update player position based on horizontal swipe
     playerX = Math.max(0, Math.min(CANVAS_WIDTH - PLAYER_WIDTH, playerX + deltaX));
 
-    // Update speed based on vertical swipe
     if (Math.abs(deltaY) > SWIPE_THRESHOLD) {
         speed = Math.max(0, Math.min(200, speed + deltaY * 0.1));
     }
@@ -111,7 +108,6 @@ function handleTouchEnd(e) {
     e.preventDefault();
     const touchDuration = Date.now() - touchState.startTime;
     
-    // If touch was short and didn't move much, consider it a tap
     if (touchDuration < TAP_THRESHOLD && !touchState.moved && gameState === 'playing') {
         shootMonkey();
     }
@@ -125,7 +121,8 @@ function resetOpponents() {
         opponents.push({
             x: Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH),
             y: -((i + 1) * 200),
-            speed: 2 + Math.random() * 2
+            speed: 2 + Math.random() * 2,
+            type: 'bike'  // Add type to identify bikes
         });
     }
     monkeys = [];
@@ -148,6 +145,13 @@ function hideAllMenus() {
     document.getElementById('highScores').classList.add('hidden');
 }
 
+function showHitEffect(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 30, 0, Math.PI * 2);
+    ctx.fill();
+}
+
 function shootMonkey() {
     const currentTime = Date.now();
     if (currentTime - lastShotTime >= FIRE_RATE) {
@@ -158,18 +162,13 @@ function shootMonkey() {
         });
         lastShotTime = currentTime;
         
-        // Add visual feedback for shooting
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-        ctx.beginPath();
-        ctx.arc(playerX + PLAYER_WIDTH / 2, playerY, 30, 0, Math.PI * 2);
-        ctx.fill();
+        showHitEffect(playerX + PLAYER_WIDTH / 2, playerY, 'rgba(255, 255, 0, 0.5)');
     }
 }
 
 function update() {
     if (gameState !== 'playing') return;
 
-    // Handle keyboard controls
     if (keys[' ']) {
         shootMonkey();
     }
@@ -178,14 +177,11 @@ function update() {
     if (keys['ArrowUp']) speed = Math.min(200, speed + 1);
     if (keys['ArrowDown']) speed = Math.max(0, speed - 1);
 
-    // Update road
     roadOffset = (roadOffset + ROAD_SPEED + speed/20) % 50;
 
-    // Update monkeys
     monkeys = monkeys.filter(monkey => {
         monkey.y -= monkey.speed;
         
-        // Check collision with opponents
         let hit = false;
         opponents.forEach((opponent, index) => {
             if (checkCollision(
@@ -195,20 +191,24 @@ function update() {
                 hit = true;
                 opponent.y = -200;
                 opponent.x = Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH);
-                score += 200;
+                
+                // Add bike-specific scoring and effects
+                if (opponent.type === 'bike') {
+                    score += SCORE_BIKE_HIT;
+                    showHitEffect(opponent.x + PLAYER_WIDTH/2, opponent.y + PLAYER_HEIGHT/2, 'rgba(255, 0, 0, 0.5)');
+                }
             }
         });
         
         return monkey.y > -MONKEY_SIZE && !hit;
     });
 
-    // Update opponents
     opponents.forEach(opponent => {
         opponent.y += opponent.speed + speed/30;
         if (opponent.y > CANVAS_HEIGHT) {
             opponent.y = -200;
             opponent.x = Math.random() * (CANVAS_WIDTH - PLAYER_WIDTH);
-            score += 100;
+            score += SCORE_PASS_OPPONENT;
         }
 
         if (checkCollision(
